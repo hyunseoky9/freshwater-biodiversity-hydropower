@@ -1,0 +1,415 @@
+# doing SDM with ENMeval. Unlike previous versions, model-tuning and partitioning for k-fold validation is conducted.
+# also sdm4 does calibration as well as projection with different scenario background data 
+# code reference: https://jamiemkass.github.io/ENMeval/articles/ENMeval-2.0-vignette.html#null
+library(ENMeval)
+library(ecospat)
+library(devtools)
+library(dplyr)
+library(sf)
+library(sp)
+library(data.table)
+library(tidyverse)
+
+arrayid = as.integer(Sys.getenv("SLURM_ARRAY_TASK_ID"))
+set.seed(arrayid)
+spnamedata = read.csv('./spdata/comprehensive_sp_info.csv')
+nolownetsymdiff = 1
+threshold = 0.4
+
+idxfilename = 'G:/My Drive/research/sdm_modeling/sdm_results/sdm_included_species.csv'
+idx0 = read.csv(idxfilename)
+idx0 = idx0$index
+
+currentofuture = 'current' # current tempflow predictors or future tempflow predictors? 1=curernt, 0=future
+gcmver = 'DOE-ACCESS-CM2'
+scenario = 'pristine w gcm' #'pristine_gcm_reservoir'
+
+maxnumoccidx = 362
+minnumoccidx = 282
+start <- proc.time()
+for(i in idx0[arrayid])
+{
+  
+  ## 1. call in data and process them
+  # baseline scenario data read
+  spdatafilenametf = sprintf('G:/My Drive/research/sdm_modeling/spdata/per_sp/occpt_tempflow_predictors/%s/%s/%s/%s_wcomid.csv','pristine_gcm_reservoir',gcmver,'current',spnamedata$name[i])
+  projectionareantffilename = sprintf('G:/My Drive/research/sdm_modeling/spdata/projection_area/by_sp/only_non-tempflow related predictors/%s_projarea_non-tempflowpredictors.csv',spnamedata$name[i])
+  projectionareatffilename = sprintf('G:/My Drive/research/sdm_modeling/spdata/projection_area/by_sp/%s/%s/%s/%s_projarea.csv','pristine_gcm_reservoir',gcmver,'current',spnamedata$name[i])
+  sp = fread(spdatafilenametf)
+  projtf = fread(projectionareatffilename)
+  projntf = fread(projectionareantffilename)
+  
+  projectionareaflowfilename = sprintf('G:/My Drive/research/sdm_modeling/spdata/projection_area/by_sp/%s/%s/%s/%s_projarea.csv','pristine w gcm',gcmver,'current',spnamedata$name[i])
+  projflow = fread(projectionareaflowfilename)
+  
+  
+  proj = cbind(projntf,projtf[,c('numday_above_tmax','numday_below_tmin','dd90_5c','dd90_8c','dd90_10c','dd120_5c','dd120_8c','dd120_10c','dd150_5c','dd150_8c','dd150_10c','avgtemp')],
+               projflow[,c('maxflow','maxflowdate','minflow','minflowdate','avgflow','maxminflowdiff')])
+  
+  
+  
+  # get rid of points with low netsymmetricdifference value 
+  if(nolownetsymdiff)
+  {
+    sp = sp[which(sp$wbmID_30sec_netsymdiff<threshold),]
+    proj = proj[which(proj$wbmID_30sec_netsymdiff<threshold),]
+    if(nrow(sp)<30)
+    {
+      cat(i)
+    }
+  }
+  
+  sp = sp[-which(is.na(sp$BFI)),]
+  proj = proj[-which(is.na(proj$BFI)),]
+  # exclude rows with streamorder value of -9
+  if(length(which(sp$streamorder==-9))>0)
+  {
+    sp = sp[-which(sp$streamorder==-9),]  
+  }
+  if(length(which(proj$streamorder==-9))>0)
+  {
+    proj = proj[-which(proj$streamorder==-9),]
+  }
+  
+  # presence 
+  p = rep(0, length(proj$comid))
+  p[which(!is.na(match(proj$comid,sp$comid)))] = 1 # presence
+  proj$p = p
+  bckdata <- filter(proj, get('p') ==0)
+  
+  # select the set of predictors to use to run the sdm with
+  dirpath = sprintf('G:/My Drive/research/sdm_modeling/sdm_results/%s',gcmver)
+  dataversion = 2
+  if(dataversion == 1)
+  {
+    bckdata = data.frame(dplyr::select(bckdata,decimalLongitude,decimalLatitude,BFI,waterbody,numday_above_tmax,
+                                       numday_below_tmin,dd90_5c,dd90_8c,dd90_10c,
+                                       dd120_5c,dd120_8c,dd120_10c,dd150_5c,dd150_8c,
+                                       dd150_10c,maxflow,maxflowdate,minflow,
+                                       minflowdate,avgtemp,streamorder))
+    spdf = data.frame(dplyr::select(sp,decimalLongitude,decimalLatitude,BFI,waterbody,numday_above_tmax,
+                                    numday_below_tmin,dd90_5c,dd90_8c,dd90_10c,
+                                    dd120_5c,dd120_8c,dd120_10c,dd150_5c,dd150_8c,
+                                    dd150_10c,maxflow,maxflowdate,minflow,
+                                    minflowdate,avgtemp,streamorder))
+    proj = data.frame(dplyr::select(proj,comid,BFI,waterbody,numday_above_tmax,
+                                    numday_below_tmin,dd90_5c,dd90_8c,dd90_10c,
+                                    dd120_5c,dd120_8c,dd120_10c,dd150_5c,dd150_8c,
+                                    dd150_10c,maxflow,maxflowdate,minflow,
+                                    minflowdate,avgtemp,streamorder))    
+    dirpath = sprintf('%s/%s_pristinerun_dfall',dirpath,spnamedata$name[i])
+  } else if(dataversion == 2)
+  {
+    bckdata = data.frame(dplyr::select(bckdata,decimalLongitude,decimalLatitude,BFI,waterbody,streamorder,numday_above_tmax,dd90_8c,minflow,minflowdate,maxflowdate,avgflow))
+    spdf = data.frame(dplyr::select(sp,decimalLongitude,decimalLatitude,BFI,waterbody,streamorder,numday_above_tmax,dd90_8c,minflow,minflowdate,maxflowdate,avgflow))
+    proj = data.frame(dplyr::select(proj,comid,BFI,waterbody,streamorder,numday_above_tmax,dd90_8c,minflow,minflowdate,maxflowdate,avgflow))
+    dirpath = sprintf('%s/%s_pristinerun_dfdd90_8c',dirpath,spnamedata$name[i])
+  } else if(dataversion == 3)
+  {
+    bckdata = data.frame(dplyr::select(bckdata,decimalLongitude,decimalLatitude,BFI,waterbody,streamorder,numday_above_tmax,dd90_10c,minflow,minflowdate,maxflowdate,avgflow))
+    spdf = data.frame(dplyr::select(sp,decimalLongitude,decimalLatitude,BFI,waterbody,streamorder,numday_above_tmax,dd90_10c,minflow,minflowdate,maxflowdate,avgflow))
+    proj = data.frame(dplyr::select(proj,comid,BFI,waterbody,streamorder,numday_above_tmax,dd90_10c,minflow,minflowdate,maxflowdate,avgflow))
+    dirpath = sprintf('%s/%s_pristinerun_dfdd90_10c',dirpath,spnamedata$name[i])
+  }
+  
+  if(nolownetsymdiff)
+  {
+    dirpath = paste(dirpath,sprintf('_lownetsymdiff%.2f',threshold),sep='')  
+  }
+  
+  # occurrence opints
+  occ = spdf
+  # randomly select 10000 background points for maxent
+  if(nrow(bckdata)<10000)
+  {
+    samplesize = nrow(bckdata)
+  } else {
+    samplesize = 10000  
+  }
+  bg = bckdata[sample(1:nrow(bckdata), samplesize),]
+  
+  #waterbody predictor as factor
+  bg$waterbody = as.factor(bg$waterbody)
+  occ$waterbody = as.factor(occ$waterbody)
+  
+  
+  # change colnames of longitude and latitude to 'longitude' and 'latitude'
+  names(bg)[which(names(bg)=='decimalLongitude')] = 'longitude'
+  names(occ)[which(names(occ)=='decimalLongitude')] = 'longitude'
+  names(bg)[which(names(bg)=='decimalLatitude')] = 'latitude'
+  names(occ)[which(names(occ)=='decimalLatitude')] = 'latitude'
+  
+  ## 3. partition k-fold crossvalidation, tune, and calibrate the model
+  #tune.args <- list(fc = c("L", "LQ","H","LQH","LQHP","LQHPT"), rm = 1:4) # model tuning parameter range
+  tune.args <- list(fc = c("L"), rm = 1:2) # model tuning parameter range
+  #running the model
+  e <- ENMevaluate(occ, bg = bg, algorithm = "maxnet", tune.args = tune.args, 
+                   partitions = "block",parallel=FALSE)  
+  
+  # the result stats
+  res <- eval.results(e)
+  
+  # model selection
+  # a) highest aicc
+  opt.aicc <- res %>% filter(delta.AICc == 0)
+  
+  # b) minimum 10percentile omission rate and tie-breaker with auc
+  opt.seq1 <- res %>% 
+    filter(or.10p.avg == min(or.10p.avg)) %>% 
+    filter(auc.val.avg == max(auc.val.avg))
+  opt.seq1
+  
+  # c) maximum continuous boyce index (cbi)
+  opt.seq2 <- res %>% 
+    filter(cbi.val.avg == max(cbi.val.avg))
+  opt.seq2
+  
+  
+  opt.seq = opt.seq2 # choose which selection method to go with
+  mod.seq <- eval.models(e)[[opt.seq$tune.args]]
+  
+  
+  ## 3.1 save result informations
+  # first, make a file 
+  dir.create(dirpath)
+  # save betas
+  filename = sprintf('%s/betas.csv',dirpath)
+  write.csv(t(as.data.frame(mod.seq$betas)),filename,row.names=FALSE)
+  
+  # save response curve figure
+  filename = sprintf('%s/response_curves.png',dirpath)
+  png(file=filename,
+      width=1200, height=985)
+  plot(mod.seq, type = "cloglog")
+  dev.off()
+  # save all possible model's eval result
+  filename = sprintf('%s/evalresult.csv',dirpath)
+  write.csv(res,filename,row.names=FALSE)
+  
+  # save the selected model's eval result
+  filename = sprintf('%s/evalresult_selected_model.csv',dirpath)
+  write.csv(res[which(res$tune.args==opt.seq$tune.args),],filename,row.names=FALSE)
+  
+  # **Lastly, save the enmeval object and the optimal moel as an rds file to be able to use it later to project in a separate session in the future.
+  filename = sprintf('%s/enmeval_model.rds',dirpath)
+  write_rds(e,filename)
+  filename2 = sprintf('%s/enmeval_optimal_model.rds',dirpath)
+  write_rds(mod.seq,filename2)
+  #e_load = read_rds(sprintf('%s/enmeval_model.rds',dirpath))
+  #mod.seq_load = read_rds(sprintf('%s/enmeval_optimal_model.rds',dirpath))
+  
+  ## 4. compare to null model
+  # We first run the null simulations with 100 iterations to get a reasonable null distribution 
+  # for comparisons with the empirical values
+  # *not doing it. Takes too long...
+  # mod.null <- ENMnulls(e, mod.settings = list(fc = "L", rm = 1), no.iter = 100)
+  
+  ## 5. project presence
+  # a) first project to the current reservoir scenario which you used for calibration
+  e@other.settings$doClamp = e@doClamp
+  # predict presence probability on projection area
+  # predict function below derived from enm.maxnet@predict(). 
+  # enm.maxnet@predict found from this source: https://groups.google.com/g/maxent/c/87_Xnuc5gBs
+  projpred = predict(mod.seq,proj[,2:ncol(proj)],type = e@other.settings$pred.type, 
+                     clamp = e@other.settings$doClamp, e@other.settings$other.args)
+  
+  # predict presence based on mtp
+  occpred = predict(mod.seq,occ[,3:ncol(occ)],type = e@other.settings$pred.type, 
+                    clamp = e@other.settings$doClamp, e@other.settings$other.args)
+  
+  mtp = min(occpred)
+  
+  s_mtp = rep(0,length(projpred))
+  s_mtp[which(projpred>mtp)] = 1
+  
+  # maxsss
+  bgpred = predict(mod.seq,bg[,3:ncol(bg)],type = e@other.settings$pred.type, 
+                   clamp = e@other.settings$doClamp, e@other.settings$other.args)
+  Pred = c(occpred,bgpred)
+  Sp.occ = c(rep(1,length(occpred)),rep(0,length(bgpred)))
+  maxsss = ecospat.max.tss(Pred, Sp.occ)
+  maxsss = maxsss$max.threshold #maxsss threshold
+  
+  s_maxsss = rep(0, length(projpred))  
+  s_maxsss[which(projpred>maxsss)] = 1
+  
+  # 10p=10th percentile of presence porbability 
+  p10 = quantile(occpred, probs = 0.1)
+  
+  s_p10 = rep(0, length(projpred))
+  s_p10[which(projpred>p10)] = 1
+  
+  # save the prediction and the calibrated model details
+  #df = cbind(projpred,s_mtp,s_maxsss,s_p10)
+  rowidx = as.numeric(row.names(projpred))
+  df = cbind(proj$comid,NA,NA,NA,NA)
+  df[rowidx,2] = projpred
+  df[rowidx,3] = s_mtp
+  df[rowidx,4] = s_maxsss
+  df[rowidx,5] = s_p10
+  df = as.data.frame(df)
+  colnames(df) = c('comid','probabiliyt','mtp','maxsss','p10')
+  
+  ofilename = sprintf('%s/%s_binary_predictions_baseline.csv',dirpath,spnamedata$name[i])
+  write.csv(df,ofilename,row.names=FALSE)
+  
+  # b) project to future reservoir scenario bg data using the calibrated model
+  # read in future reservoir scenario data
+  {
+    projectionareatffilename = sprintf('G:/My Drive/research/sdm_modeling/spdata/projection_area/by_sp/%s/%s/%s/%s_projarea.csv','pristine_gcm_reservoir',gcmver,'future',spnamedata$name[i]) # future reservoir proj
+    projtf = fread(projectionareatffilename)
+    
+    projectionareaflowfilename = sprintf('G:/My Drive/research/sdm_modeling/spdata/projection_area/by_sp/%s/%s/%s/%s_projarea.csv','pristine w gcm',gcmver,'future',spnamedata$name[i])
+    projflow = fread(projectionareaflowfilename)
+    proj = cbind(projntf,projtf[,c('numday_above_tmax','numday_below_tmin','dd90_5c','dd90_8c','dd90_10c','dd120_5c','dd120_8c','dd120_10c','dd150_5c','dd150_8c','dd150_10c','avgtemp')],
+                 projflow[,c('maxflow','maxflowdate','minflow','minflowdate','avgflow','maxminflowdiff')])
+    
+    # get rid of points with low netsymmetricdifference value 
+    if(nolownetsymdiff)
+    {
+      sp = sp[which(sp$wbmID_30sec_netsymdiff<threshold),]
+      proj = proj[which(proj$wbmID_30sec_netsymdiff<threshold),]
+      if(nrow(sp)<30)
+      {
+        cat(i)
+      }
+    }
+    
+    sp = sp[-which(is.na(sp$BFI)),]
+    proj = proj[-which(is.na(proj$BFI)),]
+    # exclude rows with streamorder value of -9
+    if(length(which(sp$streamorder==-9))>0)
+    {
+      sp = sp[-which(sp$streamorder==-9),]  
+    }
+    if(length(which(proj$streamorder==-9))>0)
+    {
+      proj = proj[-which(proj$streamorder==-9),]
+    }
+    
+    if(dataversion == 1)
+    {
+      proj = data.frame(dplyr::select(proj,comid,BFI,waterbody,numday_above_tmax,
+                                      numday_below_tmin,dd90_5c,dd90_8c,dd90_10c,
+                                      dd120_5c,dd120_8c,dd120_10c,dd150_5c,dd150_8c,
+                                      dd150_10c,maxflow,maxflowdate,minflow,
+                                      minflowdate,avgtemp,streamorder))    
+    } else if(dataversion == 2)
+    {
+      proj = data.frame(dplyr::select(proj,comid,BFI,waterbody,streamorder,numday_above_tmax,dd90_8c,minflow,minflowdate,maxflowdate,avgflow))
+    } else if(dataversion == 3)
+    {
+      proj = data.frame(dplyr::select(proj,comid,BFI,waterbody,streamorder,numday_above_tmax,dd90_10c,minflow,minflowdate,maxflowdate,avgflow))
+    }
+    
+    # predict presence probability on projection area
+    projpred = predict(mod.seq,proj[,2:ncol(proj)],type = e@other.settings$pred.type, 
+                       clamp = e@other.settings$doClamp, e@other.settings$other.args)
+    
+    # predict binary presence based on mtp
+    s_mtp = rep(0,length(projpred))
+    s_mtp[which(projpred>mtp)] = 1
+    
+    # maxsss
+    s_maxsss = rep(0, length(projpred))  
+    s_maxsss[which(projpred>maxsss)] = 1
+    
+    # 10p=10th percentile of presence porbability 
+    s_p10 = rep(0, length(projpred))
+    s_p10[which(projpred>p10)] = 1
+    
+    # save the prediction and the calibrated model details
+    #df = cbind(projpred,s_mtp,s_maxsss,s_p10)
+    rowidx = as.numeric(row.names(projpred))
+    df = cbind(proj$comid,NA,NA,NA,NA)
+    df[rowidx,2] = projpred
+    df[rowidx,3] = s_mtp
+    df[rowidx,4] = s_maxsss
+    df[rowidx,5] = s_p10
+    df = as.data.frame(df)
+    colnames(df) = c('comid','probabiliyt','mtp','maxsss','p10')
+    
+    ofilename = sprintf('%s/%s_binary_predictions_futureres.csv',dirpath,spnamedata$name[i])
+    write.csv(df,ofilename,row.names=FALSE)
+  }
+  # c) project to current pristine scenario bg data using the calibrated model
+  {
+    projectionareatffilename = sprintf('G:/My Drive/research/sdm_modeling/spdata/projection_area/by_sp/%s/%s/%s/%s_projarea.csv','pristine w gcm',gcmver,'current',spnamedata$name[i]) # current pristine proj  
+    projtf = fread(projectionareatffilename)
+    proj = cbind(projntf,projtf[,c('numday_above_tmax','numday_below_tmin','dd90_5c','dd90_8c',
+                                   'dd90_10c','dd120_5c','dd120_8c','dd120_10c','dd150_5c',
+                                   'dd150_8c','dd150_10c','avgtemp','maxflow','maxflowdate',
+                                   'minflow','minflowdate','avgflow','maxminflowdiff')])
+    
+    # get rid of points with low netsymmetricdifference value 
+    if(nolownetsymdiff)
+    {
+      sp = sp[which(sp$wbmID_30sec_netsymdiff<threshold),]
+      proj = proj[which(proj$wbmID_30sec_netsymdiff<threshold),]
+      if(nrow(sp)<30)
+      {
+        cat(i)
+      }
+    }
+    
+    sp = sp[-which(is.na(sp$BFI)),]
+    proj = proj[-which(is.na(proj$BFI)),]
+    # exclude rows with streamorder value of -9
+    if(length(which(sp$streamorder==-9))>0)
+    {
+      sp = sp[-which(sp$streamorder==-9),]  
+    }
+    if(length(which(proj$streamorder==-9))>0)
+    {
+      proj = proj[-which(proj$streamorder==-9),]
+    }
+    
+    if(dataversion == 1)
+    {
+      proj = data.frame(dplyr::select(proj,comid,BFI,waterbody,numday_above_tmax,
+                                      numday_below_tmin,dd90_5c,dd90_8c,dd90_10c,
+                                      dd120_5c,dd120_8c,dd120_10c,dd150_5c,dd150_8c,
+                                      dd150_10c,maxflow,maxflowdate,minflow,
+                                      minflowdate,avgtemp,streamorder))    
+    } else if(dataversion == 2)
+    {
+      proj = data.frame(dplyr::select(proj,comid,BFI,waterbody,streamorder,numday_above_tmax,dd90_8c,minflow,minflowdate,maxflowdate,avgflow))
+    } else if(dataversion == 3)
+    {
+      proj = data.frame(dplyr::select(proj,comid,BFI,waterbody,streamorder,numday_above_tmax,dd90_10c,minflow,minflowdate,maxflowdate,avgflow))
+    }
+    
+    # predict presence probability on projection area
+    projpred = predict(mod.seq,proj[,2:ncol(proj)],type = e@other.settings$pred.type, 
+                       clamp = e@other.settings$doClamp, e@other.settings$other.args)
+    
+    # predict binary presence based on mtp
+    s_mtp = rep(0,length(projpred))
+    s_mtp[which(projpred>mtp)] = 1
+    
+    # maxsss
+    s_maxsss = rep(0, length(projpred))  
+    s_maxsss[which(projpred>maxsss)] = 1
+    
+    # 10p=10th percentile of presence porbability 
+    s_p10 = rep(0, length(projpred))
+    s_p10[which(projpred>p10)] = 1
+    
+    # save the prediction and the calibrated model details
+    #df = cbind(projpred,s_mtp,s_maxsss,s_p10)
+    rowidx = as.numeric(row.names(projpred))
+    df = cbind(proj$comid,NA,NA,NA,NA)
+    df[rowidx,2] = projpred
+    df[rowidx,3] = s_mtp
+    df[rowidx,4] = s_maxsss
+    df[rowidx,5] = s_p10
+    df = as.data.frame(df)
+    colnames(df) = c('comid','probabiliyt','mtp','maxsss','p10')
+    
+    ofilename = sprintf('%s/%s_binary_predictions_currentpri.csv',dirpath,spnamedata$name[i])
+    write.csv(df,ofilename,row.names=FALSE)
+  }
+  
+  print(sprintf('%d/%d done',which(idx0==i),length(idx0)))
+}
+print( proc.time() - start )
