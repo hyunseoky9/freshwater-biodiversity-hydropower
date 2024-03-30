@@ -1,0 +1,365 @@
+
+R codes
+/draft
+	reference organizing.R: organizes indexed references.
+
+*anaysis of the sdm outputs*
+listed sp_analysis.R: See which species that are said to be threatened are actually in the listed species list. see which of the species in my list that are listed have all of their populations protected. Find a good way to get state-listed species for all states in CONUS.
+range_length_change_analysis.R: net change in range length 
+avg evaluation metric.R: evaluation metric average (auc,cbi,or10,ormtp) across species
+risk metric analysis: calculating risk metric by huc 8 for current reservoir effect and future reservoir effect scenario and looking at the difference between the two scenarios.
+sdm_result_analysis{1,1.1,1.2,1.3,1.4,2,3.2}.R: analysis and figures used in manuscripts (1.4 is used for analysis of climate change and reservoir effect on range length)
+range size by reach vs by hydrological unit.R:  find out why avg spcount change per huc8 is negative for fish but the avg range size change is positive
+predictor_contribution.R: calculate predictors' average contribution across the species for the 3 GCMs
+projection_congruence.R: calculate congruence between species distribution projection results between the 3 GCMs for all 4 scenarios.
+
+
+*environmental mitigation cost analysis related codes*
+cost_estimation_data_exploration.R: looking at all the potential explanatory variables for the regression, such as correlation, normal distribution, transformations, etc.
+cost_estimation_regression.R: making linear regression models and making selections and outputting prediction from the selected model.
+cost_estimation_regression_trees.R: same as above but using regression tree analysis (using rpart)
+regression_prediction_analysis.R: analyzing/exploring the prediction coming from the best linear regression model from 'cost_estimation_regression.R'.
+prediction_accuracy_at_plant_locations.R: calculate proportion of species presence predictions that says the species is absent when it shouldn't be. (shows why using individual species as predictors in the linear regression model is not very feasible. Read 'regression analysis for the cost estimation_note.txt')
+
+huc2 out of huc8.R: make huc2 shapefile outof huc8
+
+non-native range by hucs (NS based).R: make non-indigenous_byhuc8_studyspecies_(from NS data).csv where each row is a huc8 code, and column is study species and 1 means the species is non-native to that huc.
+anadromous range by hucs.R: same as above but identifying huc8s where the species is anadromous for fully/partially anadromous species.
+
+sdm_result_averaging: averaging the prediction results across data produced with different GCMS.
+spoccnum_check.R: number of ocurrence data check for each scenario
+quality check.R: quality check for the workflow of turning wbm raw temp and flow data into predictors by huc and by species for projection area and for occurrence points.
+building_reservoir_scenario.R: making reservoir scenario wbm temperature data
+
+McCabe and Wolock 2011 runoff data processing: # making mean annual runoff (in mm) raster file from McCabe and Wolock 2011 data.
+mean_annual_runoff_volume_calc.R: make weighted average of the mean annual runoff (mm) that overlay in the drainage basin polygon and multiply it by the area to get the mean annual runoff of the drainage basin
+bfi_assign.R: get BFI values into the species occurrence and projection area. 
+
+*cost risk analysis related codes*
+comprehensive measure file make.R: make a comprehensive measure file that pulls the measures and costs from all the ferc docs.
+linking_biodiv_and_hydropowerproj.R: in the ferc doc, add how many anadromous, game, listed, and any species are in the project's huc 8 
+ferc_table_parsing.R: processing the csv tables extracted from the ferc documents. Pretty messy code.
+risk metric analysis: calculating risk metric by huc 8 for current reservoir effect and future reservoir effect scenario and looking at the difference between the two scenarios.
+risk metric coding: working with ea and eis data. Getting average mitigation and monitoring cost value from the data for the risk metric calculation. data from Oladosu et al.
+
+dam_processing.R: clean up McManamay's and NREL's dam data, get comids, etc. 
+
+thermal_tolerance.R: script getting the thermal tolerance (tmin, tmax, and warm/cold water species classification) info of species.
+
+area_restriction.R: clipping and merging species ranges used to constrict sdm projected areas (do not use).
+area_restriction2.R: area restriction for species with increasing huc unit method. The method chooses the area extent by choosing the largest huc unit upto 6 digit unit that can encompass all the presence points, if presence points are across multiple 6 digit huc units, increase the spatial extent through adding more 6 digit unit (do not use). 
+area_restriction3.R: same as area restriction 2, but instead of getting the projection area based on the normal, processed occurrence pts, I use occpts b4 processing (except for matching to nhd comids) (use this one).
+tempflow_predictor_recover.R: recover temperature and flow data that's specific to species from projection area built from processed occurrence points.
+huc6_for_sp_projection.R: get unique huc 6s for each species' projection area (including the 2 species yetta requested for her study: in per_sp/yetta)
+
+get_midpoint_of_occpts_comids.R: get midpoints of the comids of the occurrence points
+duplicated_comid_rid.R: get rid of occurrence pts whose comids are duplicated. 
+get_projection_areas.R: get all the comids and the comids' midpoints for where the occurrence probability will be projected to for each species (or for each huc unit).
+get_projection_areas_parallel.R: same as above but parallelized 
+
+extract_cellID.R: extract cellIDs from the cellID raster from WBM for sp occ pts and other pts where sdm will project presence prob to. (WORTHLESS)
+wbm point snapping test.R: method in 'extract_cellID.R' proved to be not accurate enough according to CUNY collaborators. Therefore, this is a test script to "snap" the locations to wbm cells as prescribed by the collaborators using occpts of aplodinotus grunniens.
+predictor_calc.R: get all the temperature and flow related predictor values for each species in the interested points. * Only worked for wbm data files created early on that's not good anymore (WORTHLESS)
+predictor_calc2.R: newer version of predictor_calc. use this one. 
+predictor_calc2_(additional predictors).R: made for adding in more predictors into the predictor dataset for huc-based & species-based projection area and species occurrence data. (e.g. avg temp, stream order.)
+predictor_calc3.R: 
+predictor_calc4.R: get all the temperature and flow related predictor values for each species in the interested points. difference from predictor_calc3: calculates only the temperature related predictors for reservoir scenarios since reservoir only affects temperature not flow in my model.
+nontailwater_predictor_fixing.R: fixing reservoir scenario projection area and occ data temp predictors. Error is made when making the resrevoir scenario daily temp, because the reservoir effect is applied on wbm cells then translated back into the comid reaches. In the process of this translation, the reaches that are in the cells with the reservoir effect applied but not a part of the tailwater of a dam gets the reservoir effect. This code fixes that.
+
+
+etc predictor and impoundment runoff index.R:  Calculates Impoundment runoff index (IR) and Equilibrium Temperature Concept (ETC) that is used as a predictor for reservoir effect from dams.
+
+
+wbmdataprocessing.R: wbm temp and discharge data processing code. (changing raw data to "v2/version2"; repartitioning data into projected areas;  " into species occpts)
+add_degree_days.R: adds degree day information to occurrence data by species
+calculate_dist_to_nearest_dam.R: get distance to nearest dam data for each occurrence points. (DEPRECATED)
+waterbody_indicator_calc.R: getting flowline type and indicator variable whether the point is on a waterbody or not
+waterbody_indicator_calc_4projarea.R: *NOT USED ANYMORE, USE THE ABOVE SCRIPT FOR PROJECTED AREAS AS WELL. same as above but for projection areas. 
+waterbody_indicator_calc_parallel.R: *SAME COMMENT AS ABOVE parallelized version of the waterbody_indicator_calc
+catchment_area_calc.R: getting catchment area for all the comids of all huc 2 units. uses most of the code from waterbody_indicator_calc_parallel.R 
+streamorder_calc.R: getting stream order for comids in all hucs.
+process_for_snapping.R: making the huc projection files into processed files for snapping onto wbm cells. has lat long and catchment area info. 
+
+
+nhdplus_learning.R: code written for learning how to navigate through nhdplusTools
+upstream_catchment_area.R: get upstream catchment area for each comid of an occurrence point. Was used for identifying occurrence points on WBM grid. Computation time too long for getting the catchment area so this code won't likely be used
+
+caret_learning.R: code I started for learning caret, the statistical package that Yetta mentioned using it for SDM. 
+
+coopers_data_comvert_v1_to_v2.R: convert cooper's data v1 comid's into v2 comids
+get_dist2dam.R: get distance to the nearest upstream dam for all occ. points using cooper's data
+get_dist2dam2.R: getting distance to the nearest upstream dam for all occ. points and projetion areas not using cooper's data and calculating on my own.
+get_dist2dam3.R: same as get_dist2dam2, but uses HILARRI hydropower subset data instead of Ryan's
+HILAREE_processing.R: processing HILAREE hydropower subset data. Adding in comids mostly.
+mop_adding.R: add mode of operation for the nearest upstream dams. Should've done it with get_dist2dam2.R, but didn't so I had to make a new script like this...
+dam to end of the reaches.R: snap dam lat longs to a snapped nhd reach, and then calculate the distances from the snapped point to the ends of the reach. 
+
+gbif_download.R: download fish and mussel species occurrence data in US from GBIF (uses different sources of species list e.g.: umn mussel, fws listed, usgs nas, Jess' thermal tol list).
+gbif_download2.R: download fish and mussel sp occurrence data in US from GBIF using MORE COMPREHENSIVE list from natureserve. Also, unlike gbif_download.R, it downloads occ data one species at a time.
+natureserve_data_explore.R: script investigating  NS species data and some processing.
+g1g2sp.R: identify which of the study species are G1/G2 species. 
+add_coord_uncertainty.R: adding coordinate uncertainty in meters to species occurrence data. 
+sp_gis_processing.R: pull up downloaded gbif occurrence data and divide the data by species.
+sdm.R: running the sdm with species and predictor variables. (made in summer 2022; DEPRECATED)
+sdm2.R: newer version (11/27/2022) of the sdm.R. Use this instead.
+aic_boxplot.R: boxplot of AIC values of species in /sdm_results 
+species count map.R: counts the number of species predicted to be present for each huc8 units in the CONUS (1) and plots them (2). 
+species_rangeNstudyareaa.R: 
+sdm3.R: newer version (6/20/2023). Use this.
+sdm4.R: doing SDM with ENMeval. Unlike previous versions, model-tuning and partitioning for k-fold validation is conducted. Also sdm4 does calibration as well as projection with different scenario background data 
+sdm4_rocky.R: sdm4.R with some modification to be run on Rocky in Nimbios. (sdm4_rocky1 and 2 are test versions)
+rocky_job_submission2.run: code submitting the job in rocky for running the sdm with sdm4_rocky.R (version 1 is similar but it does not use array job made specifically for running sdm for each species separately)
+
+
+colinearity test.R: testing colinearity of the predictors (both tempflow and non-tempflow predictors).
+sdm3_onlyprojection.R: using the calibrated parameters from sdm3.R with reservoir scenario, project presence onto background points in other scenarios.
+
+
+vif_calculation.R: calculates VIF values for the predictors for certain species. Uses codes from sdm2 and VIF calculation fn from usdm package
+sdmresult_graph.R: making sdm binary output into a graphic map
+
+occ2shape2.R/occ2shape.R: make georeferenced occurrence data into vector shapefile.
+sp_list.R: call list of species into variables.
+spocc2shape
+
+sp_filtering.R: figuring out which species are included in the study by year collected and sample size
+sp_categorizing.R: categorize species into threatened and non-indigenous and game species
+game_sp_categorization_byElman1977: make a new game species categorization based on Elman 1977 (attribute name game_Elman)
+sp_categorizing2.R: same thing is sp_cateogrizing.R but doing it with additional species from NatureServe data 
+mussel_or_fish.R: identify which family is mussels and fishes. make a column identifying that in the comprehensive sp info.csv
+non-indigenous_list.R: make a datatable of which species in my comprehensive species list is non-indigenous in which huc8 unit. each row is a huc8 unit and each column are the species in the comprehensive species list.
+listed_sp_byhuc8.R: make a data table which species are federally ESA listed in which huc8s.
+
+
+
+ridding_subspeciesNgenus.R: getting rid of subspecies and genus occ data to only have species level data.
+getting families.R: get family names for all the species in sp_list2.csv
+
+numsp_in_study.R: analytical script looking at how many species would be in the study if we limited the number of species included in the study per family or genus.
+
+add_comid_2_occpts.R: script that gets NHDPlus v2 comids for each occurrence points for each species and outputs a occurrence data file in /spdata/per_sp folder with 'w_comid' tag.
+
+
+
+
+
+.xlsx/.csv
+
+files
+gis/
+	2018_us_outline: coterminous us shapefile
+	/sp_shapefiles: sp occurrence data in shapefiles
+		species_occ.shp: has number of species grouped together, pretty old data, so you might wanna make new one.
+	/nhd05 catchment: has catchment boundary data for 05 hydrological unit (Ohio) 
+		Catchment_Dissolve.shp: boundary for 05 hydrological unit.
+		brown_trout.shp: occurrence shapefile of brown trout. created during following a tutorial. 
+		Catchment.shp: all
+		 the catchment boundaries within 05 unit. It takes a while to load.
+	/wbm: has the wbm temperature and discharge (flow) data as well as cell ID data
+		/ohio_basin: gis files for ohio basin 
+			/nc: has raster data with cell IDs
+			 	CONUS_Masks_HydroSTN30_30sec_Static_OhioBasin.tif: raster file that has the cell ID values. exported from one ofthe .nc files.
+			/runs: temperature and discharge data
+			/occpt_cellid: sp occurrence points that have been identified with wbm cell ids.
+		CONUS_Masks_HydroSTN30_30sec_Static.tif: WBM ID raster data for entire CONUS
+	/nrel datasets: has dams and plants' locations. Provided by CUNY team and downloaded from the nrel server.
+		GMLC_THERMALPLANTS_01MIN.csv: information of thermoelectric plants.
+
+
+
+spdata/
+	NAFMFD_finalcopy.xlsx: The North American Freshwater Migratory Fish Database (NAFMFD): Characterizing the migratory life histories of freshwater fishes of Canada, the United States, and Mexico. Used for identifying migratory species. 
+	NS_subsetFrom9505_pivoted.csv: data from Chris DeRolph, has data on which hucs are native range to the species based on the natureserve data. blanks are non-native range and 0/1 are native range (0 if mussel, 1 if fish)
+	listed_byhuc8_studyspecies.csv: data on which huc8s species are federally listed for. For species that are listed everywhere, it will have 1 for every huc. For partially listed species, it will have 1 for only certain hucs. The hucs where species are listed for partially listed species can be found from partially_listed_sp.csv (OR DPS-ListedSpecies-HUCs(from yetta).xlsx)
+	non-indigenous_byhuc8_studyspecies_(from NAS data).csv: similar to the listed_byhuc8_studyspecies.csv but for whether a species is non-native in the HUC area. If non-native, it's 1. This data is based on NAS occurrence data.
+	comprehensive_sp_info.csv: given by Chris DeRolph. Same as comprehensive_sp_info.csv but has an additional field 'NSgName', which repeats the sp. name if the native range exists for the species on NatureServe and NA if it does not. All the species that has NA are exotic species that has no native range in the CONUS.
+	non-indigenous_byhuc8_studyspecies_(from NS data).csv: similar to the listed_byhuc8_studyspecies.csv but for whether a species is non-native in the HUC area. If non-native, it's 1. This data is based on NatureServe native range data. It gives 1 to hucs where the species is not native. 
+
+	partially_listed_sp.csv: information on partially listed species in my study species.
+	Elman 1977 species list.csv: all the species mentioned in Elman 1977, Game fish book. 'game_Elman' field in the comprehensive_sp_info.csv is based on this data. 
+
+	Listed Animals.csv: all the fish and mussel species that are federally listed from: https://ecos.fws.gov/ecp0/reports/ad-hoc-species-report?kingdom=V&kingdom=I&status=E&status=T&status=EmE&status=EmT&status=EXPE&status=EXPN&status=SAE&status=SAT&mapstatus=3&fcrithab=on&fstatus=on&fspecrule=on&finvpop=on&fgroup=on&header=Listed+Animals.
+	sp_list.csv: list of all the species from the 4 sources (UMN mussels, FWS-Listed U.S. Species by Taxonomic group, thermal tolerance sp. list (given by Jess), and non-indigenous sp. list from usgs NAS)
+	sp_list2.csv: list of all the species from the above 4 sources + species from natureserve that are not ranked GX or GH. Newer and more comprehensive than the sp_list.csv.
+	Listed_Animals.csv: list of species that are federally listed.
+	partially_listed_sp.csv: list of species that are federally listed in only certain areas of the CONUS AND that are in my study species list. Also has info on where those species are listed in the scale of HUC8s with sources.
+	DPS-ListedSpecies-HUCs.xlsx: Where the partially listed species are listed for in the scale of HUC8s with sources. Prepared by Yetta. 
+
+	comprehensive_sp_info.csv: has info on genus and family as well as info on whether the species is a valuable game sp., nonindigenous species, threatened 	species, or warmwater species (2=coolwater, 1=warmwater, 0=coldwater). Also has info on the number of occ pts and number of occ pts that didn't have comids assigned 		to per species. only includes species whose number of occ pts in year 2000<= is more than 30. 
+		column 'occnum1': occnum after filtering for year, na comid, duplicated comid.
+		column 'occnum2': occnum after filtering for year, na comid, duplicated comid, unnecessary waterbody and flowline classes (marsh, coastline, ,pipeline, etc.), and duplicated coordinates	
+		tminref=reference where tmin data is from
+		tmaxref= where tmax data is from
+		keep_in_study = whether to keep it in the study (1=keep in study)
+		iod_wbmmatching = insufficient number of occurrence data after wbm matching process. (newsymmetric difference threshold of .4)
+		no_udd = sp with no occurrence points with upstream dam. 
+		wbmID_30sec_snapped: matched wbm 30sec cell ID with naive matching option
+		wbmID_1min: matched wbm 1min cell ID. 
+		wbmID_30sec_netsymdiff: net symmetric difference value when matching to 30sec wbm cell (higher is better match)
+		wbmID_30sec_naive: whether the match to 30 sec wbm cell was matched "naive"
+		
+	comprehensive_sp_info_allyr.csv: same as comprehensive_sp_info.csv, but has species that have more than 30 occ data sampled in all the years including years before 2000.
+	comprehensive_sp_info_b4waterbodycalc.csv: same as comprehensive_sp_info.csv, but before I exclude species for not having >30 occpts after getting rid of occpts that didn't have wanted ftypes (stream/river & canal ditch) and waterbody types (lake/pond), which were based off of erroneous results (read about waterbody calculation mishap).
+	comprehensive_sp_info_mishap.csv: same as the original, but made AFTER excluding species for not having >30 occpts after getting rid of occpts that didn't have wanted ftypes (stream/river & canal ditch) and waterbody types (lake/pond). Result of the waterbody calculation mishap.
+
+	umn mussel/: mussel list from UMN (https://conservancy.umn.edu/handle/11299/217657)
+	nonindigenous/: non-indigenous sp data from USGS NAS (https://nas.er.usgs.gov/)
+	thermal_tol/: sp list from the thermal tolerance data provided by Jess.
+	usgs_fish/: FWS-Listed U.S. Species by Taxonomic group (https://ecos.fws.gov/ecp/report/
+	game_sp/: list of game species scrapped from different websites from google search.
+	natureserve/: nature serve species list. very comprehensive and is the main backbone of the sp_list2. 
+		freshwater_fish_mussel - Copy.csv: natureserve data with fish and mussel. Includes GX and GH status (presumed extinct statuses) that are excluded in the study.
+	species-listings-by-tax-group?statusCategory=Listed&groupName=Fishes)
+	over30occpts_sp_categorized.csv: list of species with more than 30 occurrence points for SDM, categorized into game, threatened, and non-indigenous species.
+	over30occpts_sp_categorized2.csv: same thing but with sp_list2. (this is the more recent one.)	
+	familynames.csv: family names for each species in sp_list2.
+	/per_sp
+		occ data per species with comid and upstream dam distance attached to it. only have species with more than 30 occ pts that are sampled 2000 and post2000.
+		*decimalLongitude/Latitude are midpoints of the reaches. samplelat/long are raw sample coordinates from gbif.
+		/no_date_filter
+			occ data per species. files with '_wcomid' have comids for each occ pts
+			files with '_damdist' have comids for each occ pts and matched with info on the nearest upstream mainstem dam (if there is one). NO LONGER USEFUL.
+			unidentified_comid_num_persp: info on number of occ pts and number of occ pts whose comids could not be identified.
+			** Following list of species has lost the occ pt data that are pre 2000, duplicate comids, and NA comids... if you want to recover them you will have to go through downloading the comids again from [species name].csv using 'add_comid_2_occpts.R'..
+			[1] "Acantharchus pomotis"      "Acanthogobius flavimanus"  "Acipenser fulvescens"      "Acipenser oxyrinchus"     
+			[5] "Acipenser transmontanus"   "Acrocheilus alutaceus"     "Actinonaias ligamentina"   "Agosia chrysogaster"      
+			[9] "Alasmidonta arcula"        "Alasmidonta marginata"     "Alasmidonta undulata"      "Alosa aestivalis"         
+			[13] "Alosa alabamae"            "Alosa chrysochloris"       "Alosa mediocris"           "Alosa pseudoharengus"     
+			[17] "Alosa sapidissima"         "Amatitlania nigrofasciata" "Amblema elliottii"
+
+		/excluded sp: species occ files for sp who are excluded from the sutdy. Only started implementing after accounting for sample uncertainty. 
+		
+
+	/per_sp_ohio
+		has occpts and projection areas (huc5) in the ohio basin. only has aplodinotus grunniens (freshwater darter) at the moment. 
+
+	/projection_area
+		data (.csv) for all the areas (whether it be flowline from nhd or cells from wbm model), where the occurrence probability is being projected to.
+		/by_huc_nontempflow: projected area (flowlines) constrained by first 2 digit of huc unit. the huc projection area files only contain non temp/flow related predictors here.
+			huc##.csv: all the reaches in the huc unit. has comid, lat & long of midpoints of the reach, and WBM cellID for the midpoint. 
+			/for_snapping: snapping data where all the comids in the projection areas are snapped to the wbm cells.
+				huc#_tosnap.csv: files prepared to get called into the snapping script that snaps from the comid to the 30sec wbm cellID.
+				/snapped:
+					huc#_snapped.csv: data of snapping comids to 30sec wbm cellid.
+					huc#_snapped_report.csv: snapping performance report.
+				/1min_snapping: 
+					huc#_1min_snapped.csv: data of snapping 30sec wbm cellid to 1min wbm cellid.
+					huc#_1min_tosnap_ref.csv: the above file cannot hold the 30sec cellid info, so I made this separate file that is 1:1 match to the above file but has the cell id info. After the snapping process, I added another 1min wbm cell ID column that the 30sec cell matched to.
+					/1min_snapped: 
+						huc#_1min_snapped.csv: data of snapping 30sec wbm cellid to 1min wbm cellid.
+						huc#_1min_snapped_report.csv: snapping performance report.
+		/by_sp: projected area for each species. Derived from by_huc projected areas. contains all the comids in the group of huc units that contains all the UNFILTERED (for relevant years) occurrence points for each species. 
+			/for_yetta: projected area for two species that got cut (bull trout + robust redhorse) that Yetta wanted data on for her "indicator study"
+			/huc6: list of huc 6's that the species based projection areas are in for each species. It's for Yetta for her "indicator study" as well pretty much.
+			/huc6_allsp_b4filtering: same as /huc6 but using occpts that are unfiltered for relevant years.
+			/current pristine (no gcm):
+				/projareab4bigger_restriction: projection area reaches for huc units that encompass all the FILTERED occurrence points with pristine temp/flow data based on historical data, not gcm.
+
+
+
+
+			
+
+	/thermal data
+		keeps all the data related to obtaining tmin and tmax or thermal preference (warm,cool,cold water) of species. 
+
+		thermal threshold note.txt: describing howthe thermal data was prepared including thermal preference and tmax/tmin estimation!
+		thermal_tolerance_SI.txt: ultimate thermal data directly used by the comprehensive_species_info.csv (made in 7/6/2023)
+
+		Canadian Manuscript Report table2: table 2 of Coker et al. 2001. used for classifying thermal prefernce of species
+		FishTraits_allSP_formatted.csv: Frimpong and Angermeier 2009 data. tmin and tmax data on it not very useful becuase its just a air temperature on the center of the range.
+		species thermal classifiction.csv: all the species that doesn't have neither tmin/tmax info nor thermal preference info and none of the species within the same family have thermal preference info. Also has information on the thermal preference or tmin/tmax info on these species from independent lit search outside of coker et al., lyons et al., Jess' data (CR-thermal tolerance (thermal tolerance).csv), and globtherm.
+		species thermal classification.csv: same as above but with using 'coutant preference' tab in jess' data, which was wrong type of thermal information.
+		family thermal classifiction.csv (*outdated): all the family that doesn't have neither tmin/tmax info nor thermal preference info for any of their family and lits that have the info for these families based on the search from Lyons et al. and Coker et al. 
+	/iucn_rangemaps
+		range maps of freshwater fish and mussel species from iucn (https://www.iucnredlist.org/resources/spatial-data-download)
+
+
+
+environmental mitigation data/
+	measure_compilation.csv: complilation of all the measures from all the EA tables.
+	measure_compilation_with_categorization: above, but has the categorization that can be used for the statistical analysis. This is the ultimate file needed for analysis. 
+	ferc doc details.csv: meta data for ferc ea/eis documents, has info on the power capacity and huc8 location and dollar yrs too.
+	Oladosu ea eis list.xlsx: original meta data for ferc ea/eis docs that the 'ferc doc details.csv' is based on. Kinda useless now except for the links to the document download.
+	cost_shift.csv: change in env. compliance cost (in 2022 dollars) from the initial method of analysis.
+	measure data.csv: all the measures related to species specific conservation. The measure had to have the species name or group of species name (e.g. salmon) to be included in this list. Used for calculating average cost of mitigating listed/game/invasive species for initial method of analysis.
+	listed sp in ea eis.csv: all the list of species or group of species (e.g., salmon) that came up in the 'measure data.csv'
+	average cost of mitigation (cbar) value.csv: average cost of mitigating a species per project based on the 'measure data.csv' calculated using the 'risk metric coding.R'
+	inflation data.csv: inflation rate of the dollar by years.
+
+	ferc_doc
+	ferc_docs/
+		all the ferc EA/EIS documents either in PDF or DOC
+		table extracts/
+			tables extracted from the documents and organized by their document id and their project id in the form of (document id)_(project id).csv
+			convert2excel/
+				extracted tables converted to CSV files (using ferc_data_processing.R and LOTS of by-hand work...). DON'T FUCK UP THIS DATA, it took a long time to make it.
+				processed/
+					csv tables further refined by going through to check for errors and turning the cost and measure values into a program-readable form. Has '-processed' tag in front of it. The temp files are garbage now.
+
+
+
+
+	ORNL_Mitigation_Database/
+
+dam data/
+	McManamay dam data ORNL_EHAHydroPlantV2_FY18Q4.xlsx: Ryan's dam mode of operation data. 
+	ryan.csv, ryan_operational.csv, ryan_pre-operational.csv, ryan_retired.csv: table retrieved from the excel file above. ryan.csv merges rest of the 3 csv files. * this is not the correct data that Yetta had sent me. This is an official dataset from ORNL that's not as comprehensive as the one that Yetta had sent me. 
+	EHA_FY18_Dam-fromRMcManamay-notpublic.xlsx/.csv: Ryan's dam data but the one that Yetta sent me. Use this one. 
+	EHA_FY18_Dam-fromRMcManamay-notpublic_processed.csv: same one as above but the dams with same comids have been sifted to have only one dam per comid. Also dams with no Mode or dams that are not hydropower dams (those that don't have "H" on Purposes) are excluded.
+	GMLC_DAMS_01MIN.csv: dam data that includes maximum reservoir water storage.
+	GMLC_DAMS_01MIN_HYedition.csv: above, but includes mean annual runoff data downloaded from cuny data and calculated impoundment runoff index (IR)
+	HILARRI_v2/: HILARRI dataset featuring dams and waterbodies. I only use the hydropowered dams in this dataset. HILARRI_v2_SubsetHydropowerDams_HYedition.csv is the one i'm using.
+	unfeatured dams: manually downloaded data for dams that are not in the 'dams' R package from the NID website: https://nid.sec.usace.army.mil/#/dams/search/&viewType=map&resultsType=dams&advanced=false&hideList=false&eventSystem=false
+	runoff data/: dataset for getting volumetric runoff data. Has the mean annual runoff data from Wolock and McCabe 2011, which is a raster data with unit mm. Also has volumetric unit data of the mean annual runoff by multiplying the dam's basin area to the mm mean annual runoff data.
+		run2000s.csv: mccabe and wolock data from 2000 to 2009
+		run2010s.csv: same shit from 2010 to 2015 or something.
+		mean_annual_runoff_volume_km3_bydam.csv: volumetric data of the mean annual runoff. THe most important one used diretly in the predictor aor as a regression predictor for predicting temperature effect of the dam on freshwater.
+
+wbmdata/ : processed wbm simulated temperature and flow data 
+	pristine/: wbm data under pristine scenario not using gcm.
+	pristine_gcm/: wbm data under pristine scenario using gcm.
+		DOE-ACCESS-CM2/: pristine scenario data using the title's gcm.
+			current/: from 2000-2019
+			future/: from 2060-2079
+	pristine_gcm_reservoir/: wbm data under pristine scenario using gcm incorporating the reservoir effect on temperature. Only contains temperature data and not flow since the flow data would be unchanged. I added the etc value calculated using the regression model from Buendia et al. 2015 to the pristine scenario's daily temperature.
+		DOE-ACCESS-CM2/: reservoir scenario data using the title's gcm.
+			current/: "
+			future/: "
+	
+.txt
+
+potential new data sources.txt: researched material on potential new source for stream temp and flow data other than WBM.
+
+
+
+
+data source outside of the project folder in google drive:
+	in home desktop (finished research/sdm_modeling):
+		dam drainage basin shape files: shape file of drainage basin of the dams in my sdm data. 
+
+	in Elements (E:):
+		wbm/: contains wbm simulated temperature and flow data for the sampled points in each huc units from 1 through 18
+		data repository link from Fabio:
+		***
+		The URL to access the project cloud repository is:
+		https://cloud.environmentalcrossroads.net/s/ZT4TGz3NBFFodp9
+		And you can find the sampled data under:
+		https://cloud.environmentalcrossroads.net/s/ZT4TGz3NBFFodp9?path=%2Fdata%2F01min%2FSDM
+		***
+		**
+		for the processed version of the wbm simulated data go to sdm_modeling/wbmdata/. That's where all the version 2 of the files here are stored 
+		**
+			pristine: wbm data under pristine scenario not using gcm.
+			pristine_gcm: wbm data under pristine scenario using gcm.
+				DOE-ACCESS-CM2: pristine scenario data using the title's gcm.
+					current: from 2000-2019
+					future: from 2060-2079
+					verion2 (processed): same data as above but processed (v2). each row is a cell and columns are day's temperature.
+
+	in Crucial X8 (D:): 
+		sdm_modeling:
+			wbm:
+				pristine_gcm_reservoir:
+					current/
+					future/
